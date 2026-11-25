@@ -1,0 +1,36 @@
+# ⑥ SFT 초기값 (파이프라인_역할.pdf). 실험마다 --set key=value 로 바꾸고, 바꾼 이유를 why 에 적는다.
+name: sft
+model_path: models/Qwen3-4B
+data_path: data/dialogues.jsonl
+data_mode: filtered        # filtered = split=train & passed=true / raw = train 전체 (Raw vs Filtered)
+fraction: 1.0              # 데이터 크기 실험 0.25 / 0.5 / 1.0
+seed: 42
+max_length: 3072           # 대화 1건(선생님 턴 7~10개) ≈ 600~1500 토큰. 2048~4096 중 여유 있게
+val_ratio: 0.03
+
+lora:
+  r: 16
+  alpha: 32
+  dropout: 0.05
+  target_modules: all-linear   # 전체 선형층 (q,k,v,o,gate,up,down)
+qlora: false                   # true = 4bit (LoRA vs QLoRA 실험)
+
+train:
+  epochs: 2
+  learning_rate: 2.0e-4
+  lr_scheduler: cosine
+  warmup_ratio: 0.03
+  per_device_batch_size: 2
+  grad_accum: 8                # 유효 배치 16 대화
+  weight_decay: 0.0
+  optimizer: adamw_torch_fused
+  bf16: true
+  gradient_checkpointing: true
+  logging_steps: 10
+  eval_steps: 100
+  save_steps: 200
+
+why: >
+  LoRA r16/α32 는 4B 모델 말투·형식 학습에 흔히 쓰는 크기로, 메모리(24GB 이하)와 표현력의 균형.
+  lr 2e-4 cosine·warmup 3% 는 LoRA SFT 표준값. epoch 2 는 합성 데이터 과적합(같은 말투 반복)을 막기 위해 3보다 먼저 시도.
+  유효 배치 16 대화 ≈ 선생님 턴 130개/스텝.

@@ -1,0 +1,14 @@
+models/
+data/
+runs/*/ckpt/
+runs/*/adapter/
+.cache/
+/smoke/
+results/human_scoring*.json
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+
+# 기획 문서 (공개 저장소에 올리지 않음)
+*.pdf

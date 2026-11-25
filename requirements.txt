@@ -1,0 +1,17 @@
+# B 파이프라인 (학습·평가). 아래 버전으로 CPU 점검을 마쳤다 (2026-11-24).
+# torch 는 엘리스 GPU 환경의 CUDA 빌드를 그대로 쓴다 (따로 설치하지 않음).
+transformers==5.20.2
+trl==1.14.2
+peft==0.21.3
+datasets==5.2.0
+accelerate==1.15.0
+huggingface_hub==2.4.0
+kiwipiepy==0.25.1        # 지표 함수(easy_words) 형태소 분석. A도 같은 버전을 써야 값이 같다
+pyyaml>=6.0
+matplotlib>=3.8
+pytest>=8
+
+# 선택
+bitsandbytes             # QLoRA 실험 (Linux + CUDA)
+gradio                   # 데모
+# vllm                   # 평가 하네스 고속 생성 (--engine vllm, 병합 모델 필요)

@@ -1,0 +1,35 @@
+# ⑦ DPO 초기값 (파이프라인_역할.pdf). SFT 모델에서 시작한다.
+name: dpo
+model_path: models/Qwen3-4B
+sft_adapter: runs/YYYYMMDD_sft/adapter     # 실행할 때 --set sft_adapter=... 로 지정
+data_path: data/dpo.jsonl
+seed: 42
+max_length: 3072
+val_ratio: 0.03
+
+lora:
+  r: 16
+  alpha: 32
+  dropout: 0.05
+  target_modules: all-linear
+
+train:
+  epochs: 1
+  beta: 0.1
+  learning_rate: 5.0e-6
+  lr_scheduler: cosine
+  warmup_ratio: 0.1
+  per_device_batch_size: 2
+  grad_accum: 8
+  optimizer: adamw_torch_fused
+  bf16: true
+  gradient_checkpointing: true
+  logging_steps: 10
+  eval_steps: 100
+  save_steps: 200
+
+why: >
+  β 0.1 은 DPO 표준값 (SFT 모델에서 너무 멀어지지 않게). 약 3,000~5,000쌍 × 1 epoch.
+  주의: lr 5e-6 은 전체 파인튜닝 기준 값이라 LoRA 에서는 거의 안 움직일 수 있다.
+  rewards/margins 가 100스텝 안에 오르지 않으면 5e-5 로 올려 다시 돌리고 그 이유를 기록한다.
+  SFT 어댑터를 base 에 병합한 뒤 새 LoRA 를 붙이므로, 기준(reference) 모델 = 어댑터를 끈 모델 = SFT 모델이다.
