@@ -31,6 +31,8 @@ tests/                       pytest
 엘리스 GPU 서버에서 레포 루트 기준으로 실행한다.
 
 ### ① 환경 준비
+학교 GPU 서버(도커)에서는 유지되는 폴더에 clone한 뒤 `bash scripts/server_setup.sh --download`를 실행하면
+저장 공간·GPU·인터넷 점검, `env.sh`, venv, 패키지 설치, 모델 다운로드까지 한 번에 한다(자세한 것은 스크립트 첫 부분 주석).
 ```bash
 pip install -r requirements.txt
 python scripts/download_model.py                  # -> models/Qwen3-4B (git 제외)
