@@ -7,8 +7,10 @@ Claude Code가 세션을 시작할 때 자동으로 읽는 파일이다. 이전 
 - 팀 프로젝트 **LLM-Math_Tutor**: 초등 수학 오개념을 질문으로 고쳐 주는 선생님 모델.
   Qwen3-4B 위에 LoRA로 SFT → DPO 한다. **모델을 처음부터 만드는 것이 아니다.**
 - 사용자는 **역할 B(학습·평가 파이프라인)** 담당이다. 역할 A는 데이터(대화·DPO 쌍) 생성과 코드 학생 담당.
-- 기획 문서 3개(`파이프라인_역할.pdf`, `데이터_생성_역할.pdf`, `매쓰 튜터 with SLM.pdf` 중간발표 자료)는
-  개인 PC에만 있고 **git에 올리지 않는다**(`.gitignore`의 `*.pdf`). 필요한 내용은 이 파일과 README에 옮겨 두었다.
+- 기획 문서 3개가 레포 루트에 있다(2026-11-27부터 git에 포함, 공개 저장소).
+  - `파이프라인_역할.pdf`: B가 할 일 원문. `데이터_생성_역할.pdf`: A의 일과 데이터 형식 원문.
+    `매쓰 튜터 with SLM.pdf`: 중간발표 자료(보완 근거).
+  - 한글 추출은 `pdftotext`가 깨지므로 `pypdf`로 읽는다.
 - 답은 **한국어**로, 쉬운 말로 한다. 커밋·푸시는 사용자가 요청할 때만 한다.
 - 저장소: https://github.com/Seojw0108/math_tutor (main)
 
@@ -39,7 +41,7 @@ Claude Code가 세션을 시작할 때 자동으로 읽는 파일이다. 이전 
 4. SFT 응답을 `export_sft_responses.py`로 A에게 → A가 dpo.jsonl 생성 → `train_dpo.py`.
 5. `run_eval.py`로 5개 모드(base, base_prompt, base_thinking, sft, sft_dpo) 같은 시드 평가 → `make_results.py`.
 
-## 데이터 형식 (요약, 원문은 데이터_생성_역할.pdf)
+## 데이터 형식 (요약, 원문은 레포 루트의 데이터_생성_역할.pdf)
 - dialogues.jsonl 한 줄 = 수업 1건:
   `id, standard("[4수01-03]"), standard_name, area, grade_band("1~2"|"3~4"|"5~6"), misconception_id,
   student_persona, problem{question, answer, wrong_answer, context}, messages[{role, content, (stage, response_type ...)}],
