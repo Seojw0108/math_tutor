@@ -49,7 +49,9 @@ Claude Code가 세션을 시작할 때 자동으로 읽는 파일이다. 이전 
   - messages의 메타데이터 칸은 학습 입력에서 지운다(`tutor/chat.py: clean_messages`).
   - 첫 user 턴은 `[수업 시작]`, system은 `tutor/prompts.py`의 `SYSTEM_TEMPLATE`.
 - dpo.jsonl 한 줄: `prompt(messages 목록), chosen, rejected, rejected_type`.
-- 평가용 `data/misconceptions.jsonl`(오개념 목록)과 A의 코드 학생 모듈(`run_eval.py --student_module 패키지.모듈:클래스`)도 A에게서 받는다.
+- 평가용 `data/misconceptions.jsonl`(오개념 목록)과 A의 코드 학생 모듈도 A에게서 받는다.
+  A의 코드는 레포 루트 `tutor_data/`에 둔다(A 코드가 `레포/data/`를 기준으로 파일을 찾고, `data/`는 git 제외라서).
+  평가: `run_eval.py --student code --student_module tutor_data.student:CodeStudent` → `CodeStudentAdapter`가 감싼다.
 - 예시는 `probe/base_probe.jsonl`.
 
 ## 고치기 전에 알아야 할 설계 결정 (코드만 봐서는 이유가 안 보이는 것)
@@ -65,6 +67,6 @@ Claude Code가 세션을 시작할 때 자동으로 읽는 파일이다. 이전 
   안 빼면 엉터리 선생님도 성공률이 나왔다.
 - **AI 심사**는 6항목 루브릭, 둘 비교는 순서를 바꿔 두 번 묻는다. API는 환경 변수 `JUDGE_*`/`STUDENT_*`
   (openai 호환 / anthropic / dummy), 응답은 `.cache/llm`에 저장.
-- `RuleStudent`는 A의 코드 학생 대신 쓰는 흉내다. 발표용 평가는 A의 모듈(`--student_module`)로 한다.
+- `RuleStudent`는 A의 코드 학생 대신 쓰는 흉내다. 발표용 평가는 A의 모듈(`--student_module tutor_data.student:CodeStudent`)로 한다.
 - 성취기준은 코드가 121개(고시 원문), 중간발표 자료는 125개(출판사본). 발표에서 하나로 맞춰야 한다.
 - 실험 결과는 `eval.tag`로 구분한다(`run_eval.py --tag`). 같은 모드 여러 실험이 섞이지 않게.

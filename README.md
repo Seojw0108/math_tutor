@@ -5,7 +5,7 @@
 모델을 처음부터 만들지 않는다. 공개된 Qwen3-4B는 그대로 두고 LoRA(전체의 1% 미만)만 학습한다.
 
 > 상태 (2026-11-24): 모든 스크립트는 **CPU에서 작은 무작위 모델 + 가짜 데이터로 끝까지 도는 것까지 확인**했다
-> (`pytest` 14개 통과). 진짜 Qwen3-4B 학습·평가 결과는 아직 없다. 엘리스 GPU에서 처음 돌릴 때 확인할 것은 맨 아래 참고.
+> (`pytest` 15개 통과). 진짜 Qwen3-4B 학습·평가 결과는 아직 없다. 엘리스 GPU에서 처음 돌릴 때 확인할 것은 맨 아래 참고.
 
 ## 폴더
 
@@ -15,7 +15,7 @@ tutor/                 공용 코드
   chat.py              ① Qwen3 렌더링 + 선생님 말에만 손실 마스킹
   prompts.py           고정 system 템플릿, ④ AI 심사 루브릭, AI 학생 프롬프트
   judge.py             ④ AI 심사 (6항목, 비교 채점은 순서 바꿔 2번)
-  students.py          ⑤ 학생: 코드 학생 대체(RuleStudent) / AI 학생 / 사람
+  students.py          ⑤ 학생: A 코드 학생 어댑터 / 코드 학생 대체(RuleStudent) / AI 학생 / 사람
   harness.py           ⑤ 평가 하네스 (수업 → 사후 문제 → 채점, 배치 생성)
   generation.py        평가 대상 5개 모델 불러오기 (Base, Base+프롬프트, Base+thinking, SFT, SFT+DPO)
   runlog.py            runs/{날짜}_{이름}/ 기록 (공고 요구 항목)
@@ -24,6 +24,8 @@ configs/sft.yaml, dpo.yaml   ⑥⑦ 초기값 + 왜 그 값인지(why)
 probe/base_probe.jsonl       ② 손으로 만든 '아이가 틀린 직후' 장면 28개 (scripts/make_base_probe.py 로 생성)
 scripts/                     실행 스크립트 (아래 순서)
 tests/                       pytest
+tutor_data/                  A의 코드: 코드 학생(student.py), 형식 검사(validate.py), DPO 규칙 쌍(dpo.py)
+data/                        A의 데이터 (git 제외). data/README.md 가 A의 설명
 ```
 
 ## 할 일 순서와 명령
@@ -119,9 +121,11 @@ python scripts/math_retention.py --models base,sft,sft_dpo --sft_adapter <sft> -
 ```
 - 수업 흐름: 설정 → 선생님 ↔ 학생(최대 12턴) → 사후 문제 → 채점. 채점 항목은 교정 여부, 교정 턴 수, ③ 지표, ④ 점수다.
 - **사후 문제가 오개념을 가려내지 못하면**(오개념대로 풀어도 맞는 숫자) 교정 성공률에서 뺀다. 이런 경우는 `사후문제_판별불가`로 표시한다.
-- **코드 학생**은 A의 모듈이 오면 `--student_module 패키지.모듈:클래스`로 꽂는다.
-  - 인터페이스는 `tutor/students.py` 맨 위 주석에 있다: `reset`, `respond`, `answer_post_check`, `understood`.
-  - 그전까지는 확정 오개념 8개를 흉내 내는 `RuleStudent`가 대신한다.
+- **코드 학생**은 A의 모듈을 `--student_module tutor_data.student:CodeStudent`로 꽂는다.
+  - 하네스의 학생 인터페이스는 `tutor/students.py` 맨 위 주석에 있다: `reset`, `respond`, `answer_post_check`, `understood`.
+  - A의 `CodeStudent`는 인터페이스가 달라(`respond(문자열)`, `corrected`) `CodeStudentAdapter`가 감싼다. `load_student`가 자동으로 감싼다.
+  - 샘플 대화 50개의 선생님 말을 어댑터로 다시 넣으면 아이 턴 response_type 418/419(남은 1개는 A가 넣은 '모름' 이벤트), 사후 문제 답 50/50이 같다.
+  - `--student_module` 없이 `--student code`면 확정 오개념 8개를 흉내 내는 `RuleStudent`가 쓰인다(점검용).
 - `math_retention.py`: 선생님 프롬프트 없이 계산만 물어 **LoRA 뒤에도 수학 실력이 유지되는지** 본다(기획서 모델 원칙).
 
 ### ⑧ 추가 실험 (최소 2개)

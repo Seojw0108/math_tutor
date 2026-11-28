@@ -51,3 +51,23 @@ def test_good_teacher_corrects_bad_teacher_does_not():
     assert bad["eval"]["failure_type"] == "바로_정답"
     s = summarize([good, bad])
     assert s["correction_rate"] == 0.5 and s["early_answer_rate"] == 0.5
+
+
+def test_a_code_student_plugs_into_harness():
+    """A의 코드 학생(tutor_data.student:CodeStudent)이 어댑터로 하네스에 꽂힌다."""
+    import pytest
+    pytest.importorskip("tutor_data.student")
+    from tutor.students import CodeStudentAdapter, load_student
+
+    st = load_student("code", module="tutor_data.student:CodeStudent")
+    assert isinstance(st, CodeStudentAdapter)
+    setting = {**SETTING, "split": "test"}
+    good = run_lessons(Scripted(GOOD), [setting], lambda s: load_student("code", module="tutor_data.student:CodeStudent"),
+                       max_turns=6, log=lambda m: None)[0]
+    bad = run_lessons(Scripted(BAD), [setting], lambda s: load_student("code", module="tutor_data.student:CodeStudent"),
+                      max_turns=6, log=lambda m: None)[0]
+    assert good["messages"][3]["response_type"] == "오개념오답"      # 1/4 + 1/4 -> 2/8
+    assert good["eval"]["understood_turn"] is not None and good["eval"]["corrected"], good["messages"]
+    assert good["eval"]["solved_after_understood"] and good["eval"]["post_check_diagnostic"] is True
+    assert good["post_check"]["student_answer"] == "3/5"
+    assert not bad["eval"]["corrected"] and bad["post_check"]["student_answer"] == "3/10"

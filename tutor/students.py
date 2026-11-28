@@ -13,7 +13,8 @@
             # {"content": str, "response_type": str, "expected_answer": str|None, "understood": bool}
         def answer_post_check(self, question: str) -> str   # 사후 문제 답
 
-A 모듈 연결: --student code --student_module path.to.module:ClassName  (load_student 참고)
+A 모듈 연결: --student code --student_module tutor_data.student:CodeStudent  (load_student 참고)
+  A의 CodeStudent 는 인터페이스가 달라서 CodeStudentAdapter 가 감싼다.
 """
 from __future__ import annotations
 
@@ -289,6 +290,70 @@ class LLMStudent:
         return str(self.client.chat_json(STUDENT_SYSTEM, p, seed=self.seed).get("answer", ""))
 
 
+class CodeStudentAdapter:
+    """A의 코드 학생(tutor_data.student.CodeStudent)을 하네스의 학생 인터페이스에 맞춘다.
+
+    A 쪽은 수업 1건마다 `CodeStudent(오개념, style, slang, seed, split)` 로 새로 만들고
+    `respond(선생님 말 문자열)` 을 부르는 방식이다. 하네스는 인자 없이 만든 뒤 `reset(setting, seed)`,
+    `respond(대화 목록)` 을 부르므로 그 사이를 이어 준다.
+
+      understood       = A 학생의 corrected (fix_point 를 듣고 '알겠다' 판정)
+      expected_answer  = 이번 턴에 진단·연습 문제에 답했을 때 그 문제의 정답 (중간 계산 질문이면 None)
+      answer_post_check / is_diagnostic = A 의 오개념 규칙(misconceptions.py)으로 계산
+    """
+
+    def __init__(self, student_cls=None):
+        if student_cls is None:
+            from tutor_data.student import CodeStudent as student_cls  # A 모듈 (레포 루트의 tutor_data/)
+        from tutor_data import misconceptions as amc
+        from tutor_data.student import parse_problem as a_parse_problem
+        self.cls, self._mc, self._parse = student_cls, amc, a_parse_problem
+        self.understood = False
+
+    def reset(self, setting: dict, seed: int = 0):
+        self.setting = setting
+        p = setting.get("student_persona") or {}
+        self.s = self.cls(setting["misconception_id"], style=p.get("style") or "짧게 대답",
+                          slang=bool(p.get("slang")), seed=seed, split=setting.get("split") or "test")
+        self.op = self._mc.RULES[setting["misconception_id"]][0]
+        self.understood = False
+
+    def respond(self, messages: list[dict]) -> dict:
+        out = self.s.respond(messages[-1]["content"])
+        self.understood = bool(self.s.corrected)
+        expected = None
+        if self.s.last_answer is not None and self.s.last_problem is not None:
+            expected = self._mc.correct_answer(self.op, self.s.last_problem)
+        return {"content": out["content"], "response_type": out.get("response_type"),
+                "expected_answer": expected, "understood": self.understood}
+
+    def _problem(self, question: str):
+        prob = self._parse(self.op, question)
+        if prob is None:
+            return None
+        try:
+            self._mc.correct_answer(self.op, prob)
+            self._mc.wrong_answer(self.s.mid, prob)
+        except (ValueError, ZeroDivisionError, IndexError):
+            return None
+        return prob
+
+    def answer_post_check(self, question: str) -> str:
+        prob = self._problem(question)
+        if prob is None:
+            return "모르겠어요"
+        if self.s.corrected:
+            return self._mc.correct_answer(self.op, prob)
+        return self._mc.wrong_answer(self.s.mid, prob)
+
+    def is_diagnostic(self, question: str) -> bool | None:
+        prob = self._problem(question)
+        if prob is None:
+            return None
+        return not self._mc.same_value(self._mc.correct_answer(self.op, prob),
+                                       self._mc.wrong_answer(self.s.mid, prob))
+
+
 class HumanStudent:
     """사람이 아이 역할 (터미널). response_type 은 사람이 골라 적거나 비워 둔다."""
 
@@ -310,11 +375,16 @@ class HumanStudent:
 
 
 def load_student(kind: str, misconceptions: dict | None = None, module: str | None = None):
-    """kind: code | rule | llm | human. code 는 A 모듈(module='pkg.mod:Class'), 없으면 RuleStudent."""
+    """kind: code | rule | llm | human. code 는 A 모듈(module='pkg.mod:Class'), 없으면 RuleStudent.
+
+    A 의 코드 학생: --student_module tutor_data.student:CodeStudent
+    (reset 이 없는 클래스는 CodeStudentAdapter 로 감싼다)
+    """
     if kind == "code":
         if module:
             mod, cls = module.split(":")
-            return getattr(importlib.import_module(mod), cls)()
+            klass = getattr(importlib.import_module(mod), cls)
+            return klass() if hasattr(klass, "reset") else CodeStudentAdapter(klass)
         return RuleStudent()
     if kind == "rule":
         return RuleStudent()
